@@ -55,7 +55,7 @@
 <?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-<VBox fx:id="VBox" prefHeight="493.0" prefWidth="990.0" stylesheets="@style.css" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="org.ariss.star.MissionController">
+<VBox fx:id="VBox" prefHeight="493.0" prefWidth="990.0" stylesheets="@style.css" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.ariss.star.MissionController">
   <children>
     <MenuBar fx:id="MenuBar" VBox.vgrow="ALWAYS">
       <menus>
@@ -248,32 +248,36 @@
                   <Font name="Verdana" size="14.0" />
                </font>
                <GridPane.margin>
-                  <Insets right="29.0" />
+                  <Insets />
                </GridPane.margin>
             </CheckBox>
             <HBox alignment="CENTER_RIGHT" prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
                <children>
-                  <CheckBox fx:id="doNotDisturb" alignment="CENTER_RIGHT" contentDisplay="RIGHT" mnemonicParsing="false" prefHeight="19.0" prefWidth="138.0" text="Do Not Disturb">
+                  <CheckBox fx:id="doNotDisturb" alignment="CENTER_RIGHT" contentDisplay="RIGHT" graphicTextGap="0.0" mnemonicParsing="false" prefHeight="19.0" prefWidth="138.0" text="Do Not Disturb">
                      <font>
                         <Font name="Verdana" size="14.0" />
                      </font>
                      <HBox.margin>
-                        <Insets right="10.0" />
+                        <Insets right="6.0" />
                      </HBox.margin>
                   </CheckBox>
-                  <Circle fx:id="circle1" fill="DODGERBLUE" radius="3.0" stroke="BLACK" strokeType="INSIDE">
-                     <HBox.margin>
-                        <Insets right="3.0" />
-                     </HBox.margin>
-                  </Circle>
-                  <Circle fx:id="circle2" fill="#1fc4ff" radius="3.0" stroke="BLACK" strokeType="INSIDE">
-                     <HBox.margin>
-                        <Insets right="3.0" />
-                     </HBox.margin>
-                  </Circle>
-                  <Circle fx:id="circle3" fill="#1fffda" radius="3.0" stroke="BLACK" strokeType="INSIDE" />
                </children>
             </HBox>
+            <Circle fx:id="circle1" fill="DODGERBLUE" radius="3.0" stroke="BLACK" strokeType="INSIDE" GridPane.columnIndex="2" GridPane.rowIndex="1">
+               <GridPane.margin>
+                  <Insets left="5.0" />
+               </GridPane.margin>
+            </Circle>
+            <Circle fx:id="circle2" fill="#1fc4ff" radius="3.0" stroke="BLACK" strokeType="INSIDE" GridPane.columnIndex="2" GridPane.rowIndex="1">
+               <GridPane.margin>
+                  <Insets left="15.0" />
+               </GridPane.margin>
+            </Circle>
+            <Circle fx:id="circle3" fill="#1fffda" radius="3.0" stroke="BLACK" strokeType="INSIDE" GridPane.columnIndex="2" GridPane.rowIndex="1">
+               <GridPane.margin>
+                  <Insets left="25.0" />
+               </GridPane.margin>
+            </Circle>
          </children>
          <VBox.margin>
             <Insets />
