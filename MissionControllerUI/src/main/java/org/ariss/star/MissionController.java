@@ -412,27 +412,42 @@ public class MissionController {
                     }
                     pairButton.setDisable(false);
                 });
+
+                dispatcher.setOnFailed(e -> {
+                    AlertBox.display("Connection timeout - try again later");
+                    pairButton.setDisable(false);
+                });
+
                 threadExecutor.submit(dispatcher);
             }
             else{
-                localRobotConnection.setValue(null);
-                localRobotConnection.setDisable(false);
-                robotsManager.removeLocalRobot();
+                localRobotConnection.setDisable(true);
                 
                 //Unpair and turn status offline
                 pairButton.setDisable(true);
-                pairingStatus = false;
                 
                 BackendDispatcher dispatcher = new BackendDispatcher(MessageStructure.PAIR_DISCONNECT, null);
                 dispatcher.setOnSucceeded(e -> {
                     JsonObject recv = dispatcher.getValue();
                     if(recv.get("status").getAsString().equals("error")){
+                        localRobotConnection.setDisable(false);
+                        pairButton.setDisable(false);
                         AlertBox.display(recv.get("err_msg").getAsString());
                     }
                     else{
+                        pairingStatus = false;
                         pairButton.setText("Pair");
                         pairButton.setDisable(false);
+                        robotsManager.removeLocalRobot();
+                        localRobotConnection.setValue(null);
+                        localRobotConnection.setDisable(false);
                     }
+                });
+
+                dispatcher.setOnFailed(e -> {
+                    AlertBox.display("Disconnection failed");
+                    pairButton.setDisable(false);
+                    localRobotConnection.setDisable(false);
                 });
 
                 BackendDispatcher stop_rec = new BackendDispatcher(MessageStructure.STOP_APRS_RECEIVE, null);
@@ -685,6 +700,11 @@ public class MissionController {
             if(obj.get("status").getAsString().equals("error")){
                 AlertBox.display(obj.get("err_msg").getAsString());
             }
+            hideLoadingAnimation();
+            doNotDisturb.setDisable(false);
+        });
+
+        dispatcher.setOnFailed(e -> {
             hideLoadingAnimation();
             doNotDisturb.setDisable(false);
         });
