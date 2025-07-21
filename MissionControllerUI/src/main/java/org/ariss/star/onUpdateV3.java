@@ -52,9 +52,15 @@ public class onUpdateV3 {
     public void startListeningQSSTV(WritableImage pix) {
         pullSocket1 = context.createSocket(SocketType.PULL);
         pullSocket1.bind("tcp://127.0.0.1:5557");
+        System.out.println("[DEBUG]: QSSTV Listener started, waiting for messages");
         qsstvThread = new Thread(() -> {
             while (true) {
                 byte[] message = pullSocket1.recv(0);
+                if (message == null) {
+                    System.out.println("[ERROR] null on receive");
+                    continue;
+                }
+                System.out.println("[DEBUG]: Received QSSTV message");
                 ByteBuffer buffer = ByteBuffer.wrap(message);
                 buffer.order(ByteOrder.LITTLE_ENDIAN);
 
