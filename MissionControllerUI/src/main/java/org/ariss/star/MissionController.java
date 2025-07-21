@@ -585,7 +585,7 @@ public class MissionController {
                 AlertBox.display("User must be configured and robot must be paired");
                 return;
             }
-            doNotDisturb.setSelected(!doNotDisturb.isSelected());
+
             handleDoNotDisturbUpdate();
             event.consume();
         });
@@ -694,21 +694,28 @@ public class MissionController {
     }
 
     private void handleDoNotDisturbUpdate(){
+        boolean newVal = !doNotDisturb.isSelected();
         HashMap<String, Object> map = new HashMap<>();
         doNotDisturb.setDisable(true);
         showLoadingAnimation();
-        map.put("doNotDisturb", doNotDisturb.isSelected());
+        map.put("doNotDisturb", newVal);
         BackendDispatcher dispatcher = new BackendDispatcher(MessageStructure.USER_DATA_UPDATE, map);
         dispatcher.setOnSucceeded(e -> {
             JsonObject obj = dispatcher.getValue();
             if(obj.get("status").getAsString().equals("error")){
                 AlertBox.display(obj.get("err_msg").getAsString());
             }
+            else{
+                doNotDisturb.setSelected(newVal);
+            }
+
             hideLoadingAnimation();
             doNotDisturb.setDisable(false);
         });
 
         dispatcher.setOnFailed(e -> {
+            AlertBox.display("Request timed out - try again later");
+
             hideLoadingAnimation();
             doNotDisturb.setDisable(false);
         });
