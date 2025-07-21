@@ -134,7 +134,7 @@
                   </Label>
             <StackPane fx:id="stackpane" alignment="TOP_LEFT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="270.0" minWidth="280.0" styleClass="image-wrapper" VBox.vgrow="ALWAYS">
               <children>
-                <ImageView fx:id="sstv_image" fitWidth="3.0" pickOnBounds="true" preserveRatio="true" />
+                <ImageView fx:id="sstv_image" fitWidth="280.0" fitHeight="270.0" pickOnBounds="true" preserveRatio="true" />
               </children>
                      <VBox.margin>
                         <Insets bottom="15.0" left="15.0" right="10.0" />
