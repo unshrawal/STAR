@@ -651,6 +651,10 @@ public class MissionController {
         
         sstvWritable = new WritableImage(280, 270);
         sstv_image.setImage(sstvWritable);
+
+        sstv_image.fitWidthProperty().bind(stackpane.widthProperty());
+        sstv_image.fitHeightProperty().bind(stackpane.heightProperty());
+
         updater.startListeningQSSTV(sstvWritable);
     }
 
