@@ -52,9 +52,15 @@ public class onUpdateV3 {
     public void startListeningQSSTV(WritableImage pix) {
         pullSocket1 = context.createSocket(SocketType.PULL);
         pullSocket1.bind("tcp://127.0.0.1:5557");
+        System.out.println("[DEBUG]: QSSTV Listener started, waiting for messages");
         qsstvThread = new Thread(() -> {
             while (true) {
                 byte[] message = pullSocket1.recv(0);
+                if (message == null) {
+                    System.out.println("[ERROR] null on receive");
+                    continue;
+                }
+                System.out.println("[DEBUG]: Received QSSTV message");
                 ByteBuffer buffer = ByteBuffer.wrap(message);
                 buffer.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -81,6 +87,7 @@ public class onUpdateV3 {
                 lastLineNum = lineNum;
 
                 Platform.runLater(() -> {
+                    System.out.println("[DEBUG]: Processing linenum " + lineNum);
                     if (lineNum >= 0 && lineNum < 270) {
                         for(int x = 0; x < Math.min(280, width); x++) {
                             int r = red[x] & 0xFF;
@@ -88,6 +95,10 @@ public class onUpdateV3 {
                             int b = blue[x] & 0xFF;
                             pix.getPixelWriter().setColor(x, lineNum, Color.rgb(r, g, b));
                         }
+                        System.out.println("[DEBUG]: Processed linenum " + lineNum);
+                    }
+                    else {
+                        System.out.println("[DEBUG]: Linenum " + lineNum + ", out of bounds (0,270)");
                     }
                 });
             }

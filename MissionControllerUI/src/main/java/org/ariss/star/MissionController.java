@@ -412,27 +412,42 @@ public class MissionController {
                     }
                     pairButton.setDisable(false);
                 });
+
+                dispatcher.setOnFailed(e -> {
+                    AlertBox.display("Connection timeout - try again later");
+                    pairButton.setDisable(false);
+                });
+
                 threadExecutor.submit(dispatcher);
             }
             else{
-                localRobotConnection.setValue(null);
-                localRobotConnection.setDisable(false);
-                robotsManager.removeLocalRobot();
+                localRobotConnection.setDisable(true);
                 
                 //Unpair and turn status offline
                 pairButton.setDisable(true);
-                pairingStatus = false;
                 
                 BackendDispatcher dispatcher = new BackendDispatcher(MessageStructure.PAIR_DISCONNECT, null);
                 dispatcher.setOnSucceeded(e -> {
                     JsonObject recv = dispatcher.getValue();
                     if(recv.get("status").getAsString().equals("error")){
+                        localRobotConnection.setDisable(false);
+                        pairButton.setDisable(false);
                         AlertBox.display(recv.get("err_msg").getAsString());
                     }
                     else{
+                        pairingStatus = false;
                         pairButton.setText("Pair");
                         pairButton.setDisable(false);
+                        robotsManager.removeLocalRobot();
+                        localRobotConnection.setValue(null);
+                        localRobotConnection.setDisable(false);
                     }
+                });
+
+                dispatcher.setOnFailed(e -> {
+                    AlertBox.display("Disconnection failed");
+                    pairButton.setDisable(false);
+                    localRobotConnection.setDisable(false);
                 });
 
                 BackendDispatcher stop_rec = new BackendDispatcher(MessageStructure.STOP_APRS_RECEIVE, null);
@@ -570,7 +585,7 @@ public class MissionController {
                 AlertBox.display("User must be configured and robot must be paired");
                 return;
             }
-            doNotDisturb.setSelected(!doNotDisturb.isSelected());
+
             handleDoNotDisturbUpdate();
             event.consume();
         });
@@ -636,6 +651,10 @@ public class MissionController {
         
         sstvWritable = new WritableImage(280, 270);
         sstv_image.setImage(sstvWritable);
+
+        sstv_image.fitWidthProperty().bind(stackpane.widthProperty());
+        sstv_image.fitHeightProperty().bind(stackpane.heightProperty());
+
         updater.startListeningQSSTV(sstvWritable);
     }
 
@@ -675,16 +694,28 @@ public class MissionController {
     }
 
     private void handleDoNotDisturbUpdate(){
+        boolean newVal = !doNotDisturb.isSelected();
         HashMap<String, Object> map = new HashMap<>();
         doNotDisturb.setDisable(true);
         showLoadingAnimation();
-        map.put("doNotDisturb", doNotDisturb.isSelected());
+        map.put("doNotDisturb", newVal);
         BackendDispatcher dispatcher = new BackendDispatcher(MessageStructure.USER_DATA_UPDATE, map);
         dispatcher.setOnSucceeded(e -> {
             JsonObject obj = dispatcher.getValue();
             if(obj.get("status").getAsString().equals("error")){
                 AlertBox.display(obj.get("err_msg").getAsString());
             }
+            else{
+                doNotDisturb.setSelected(newVal);
+            }
+
+            hideLoadingAnimation();
+            doNotDisturb.setDisable(false);
+        });
+
+        dispatcher.setOnFailed(e -> {
+            AlertBox.display("Request timed out - try again later");
+
             hideLoadingAnimation();
             doNotDisturb.setDisable(false);
         });
