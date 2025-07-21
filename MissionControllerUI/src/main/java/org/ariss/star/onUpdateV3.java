@@ -87,6 +87,7 @@ public class onUpdateV3 {
                 lastLineNum = lineNum;
 
                 Platform.runLater(() -> {
+                    System.out.println("[DEBUG]: Processing linenum " + lineNum);
                     if (lineNum >= 0 && lineNum < 270) {
                         for(int x = 0; x < Math.min(280, width); x++) {
                             int r = red[x] & 0xFF;
@@ -94,6 +95,10 @@ public class onUpdateV3 {
                             int b = blue[x] & 0xFF;
                             pix.getPixelWriter().setColor(x, lineNum, Color.rgb(r, g, b));
                         }
+                        System.out.println("[DEBUG]: Processed linenum " + lineNum);
+                    }
+                    else {
+                        System.out.println("[DEBUG]: Linenum " + lineNum + ", out of bounds (0,270)");
                     }
                 });
             }
