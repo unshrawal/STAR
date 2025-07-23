@@ -2,12 +2,14 @@ package org.ariss.star;
 
 import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -127,48 +129,68 @@ public class MissionController {
     private Process qsstv;
 
     @FXML
-    protected void qsstvCheckboxClicked(MouseEvent event) throws IOException {
-        if (qsstv_checkbox.isSelected()) {
-            qsstv = new ProcessBuilder("./qsstv").start();
-        }
-        else {
-            if (qsstv != null && qsstv.isAlive()) {
-                qsstv.destroy();
-                qsstv = null;
+    protected void qsstvCheckboxClicked(MouseEvent event) {
+        try{
+            if (qsstv_checkbox.isSelected()) {
+                qsstv = new ProcessBuilder("./qsstv").start();
             }
+            else {
+                if (qsstv != null && qsstv.isAlive()) {
+                    qsstv.destroy();
+                    qsstv = null;
+                }
+            }
+        }
+        catch (IOException e) {
+            AlertBox.display("Failed to start or stop QSSTV");
         }
     }
 
     @FXML
-    protected void onLinkPressed(ActionEvent event) throws IOException, URISyntaxException{
-        if(System.getProperty("os.name").toLowerCase().contains("win")){
-            Desktop.getDesktop().browse(new URI(ARISS_URL));
+    protected void onLinkPressed(ActionEvent event) {
+        try {
+            if(System.getProperty("os.name").toLowerCase().contains("win")){
+                Desktop.getDesktop().browse(new URI(ARISS_URL));
+            }
+            else{
+                //Default browser for rpi
+                new ProcessBuilder("sh", "-c", "sensible-browser " + ARISS_URL).start();
+            }
         }
-        else{
-            //Default browser for rpi
-            new ProcessBuilder("sh", "-c", "sensible-browser " + ARISS_URL).start();
+        catch(IOException | URISyntaxException e) {
+            AlertBox.display("Failed to launch browser");
         }
     }
     
     @FXML
-    protected void onhelpPressed(ActionEvent event) throws IOException, URISyntaxException{
-        if(System.getProperty("os.name").toLowerCase().contains("win")){
-            Desktop.getDesktop().browse(new URI(STAR_URL));
+    protected void onhelpPressed(ActionEvent event) {
+        try{
+            if(System.getProperty("os.name").toLowerCase().contains("win")){
+                Desktop.getDesktop().browse(new URI(STAR_URL));
+            }
+            else{
+                //Default browser for rpi
+                new ProcessBuilder("sh", "-c", "sensible-browser " + STAR_URL).start();
+            }
         }
-        else{
-            //Default browser for rpi
-            new ProcessBuilder("sh", "-c", "sensible-browser " + STAR_URL).start();
+        catch(IOException | URISyntaxException e) {
+            AlertBox.display("Failed to launch browser");
         }
     }
 
     @FXML
     protected void gpredictMenuItemPressed(ActionEvent event) throws IOException {
-        if(System.getProperty("os.name").toLowerCase().contains("win")){
-            //new ProcessBuilder("..\\gpredict-win32-2.2.1\\gpredict-win32-2.2.1\\gpredict.exe").start();
-            new ProcessBuilder(".\\gpredict-win32-2.2.1\\gpredict-win32-2.2.1\\gpredict.exe").start();
+        try{
+            if(System.getProperty("os.name").toLowerCase().contains("win")){
+                //new ProcessBuilder("..\\gpredict-win32-2.2.1\\gpredict-win32-2.2.1\\gpredict.exe").start();
+                new ProcessBuilder(".\\gpredict-win32-2.2.1\\gpredict-win32-2.2.1\\gpredict.exe").start();
+            }
+            else{
+                new ProcessBuilder("gpredict").start();
+            }
         }
-        else{
-            new ProcessBuilder("gpredict").start();
+        catch(IOException e) {
+            AlertBox.display("Failed to start gpredict");
         }
     }
 
@@ -201,44 +223,50 @@ public class MissionController {
     Server server = null;
     @FXML
     protected void visualize(ActionEvent event) throws Exception{
-        if(System.getProperty("os.name").toLowerCase().contains("win")){
-            if(visualizerCheck.isSelected()){
-                process = new ProcessBuilder(".\\MARS-SIM\\MARS-SIM.exe").start();
-                processThread = new Thread(() -> {
-                    try {
-                        process.waitFor(); // Wait for the process to complete
-                        visualizerCheck.setSelected(false);
-                        process = null;
-                        processThread = null;
-                    } catch (InterruptedException e) {
-                        // Handle any exceptions that may occur
-                        e.printStackTrace();
-                    }
-                });
-                processThread.start();
+        try{
+            if(System.getProperty("os.name").toLowerCase().contains("win")){
+                if(visualizerCheck.isSelected()){
+                    process = new ProcessBuilder(".\\MARS-SIM\\MARS-SIM.exe").start();
+                    processThread = new Thread(() -> {
+                        try {
+                            process.waitFor(); // Wait for the process to complete
+                            Platform.runLater(() -> visualizerCheck.setSelected(false));
+                            process = null;
+                            processThread = null;
+                        } catch (InterruptedException e) {
+                            // Handle any exceptions that may occur
+                            e.printStackTrace();
+                        }
+                    });
+                    processThread.start();
+                }
+                else if(process != null){
+                    process.destroy();
+                }
             }
             else{
-                process.destroy();
-            }
-        }
-        else{
-            if(visualizerCheck.isSelected()){
-                server = new Server(8080);
-                ResourceHandler resourceHandler = new ResourceHandler();
-                resourceHandler.setWelcomeFiles(new String[]{"index.html"});
-                resourceHandler.setResourceBase("./webGL_Mars_Sim");
-                server.setHandler(resourceHandler);
-                try{
+                if(visualizerCheck.isSelected()){
+                    server = new Server(8080);
+                    ResourceHandler resourceHandler = new ResourceHandler();
+                    resourceHandler.setWelcomeFiles(new String[]{"index.html"});
+                    resourceHandler.setResourceBase("./webGL_Mars_Sim");
+                    server.setHandler(resourceHandler);
+
                     server.start();
                     new ProcessBuilder("sh", "-c", "sensible-browser " + LOCALHOST_URL).start();
                 }
-                catch (Exception e){
-                    e.printStackTrace();
+                else if(server != null){
+                    server.stop();
                 }
             }
-            else if(server != null){
-                server.stop();
-            }
+        }
+        catch (IOException e) {
+            AlertBox.display("Failed to launch visualizer");
+            visualizerCheck.setSelected(false);
+        }
+        catch (Exception e) {
+            AlertBox.display("Jetty server failed to launch or shutdown");
+            visualizerCheck.setSelected(false);
         }
     }
     @FXML
