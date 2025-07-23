@@ -7,7 +7,6 @@ import com.google.gson.JsonObject;
 
 import org.zeromq.ZContext;
 import javafx.application.Platform;
-import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 
