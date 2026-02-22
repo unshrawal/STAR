@@ -17,7 +17,7 @@ from aprsListener import APRSUpdater
 from serial import Serial, SerialException
 from serial import STOPBITS_ONE
 from serial.tools.list_ports import comports
-from bleak import *
+from bleak import BleakScanner
 import os
 import websockets
 import json
@@ -26,6 +26,7 @@ from DisconnectMonitor import USBDisconnectWatcher
 import sys
 from robot_link import RobotLink
 import shared_state
+from xrp_transport import BleXrpTransport, WifiXrpTransport
 
 ACTIVE_ROBOTS_ENDPOINT = "https://star-bvjn.onrender.com/robots/active"
 UPDATE_ROBOT_ENDPOINT = "https://star-bvjn.onrender.com/robots/update"
@@ -55,15 +56,10 @@ isFirstCommand = True
 isConnected = False
 disconnect = False
 isLookingForBluetooth = True
-XRPAddress = ""
 devices = []
 myScanner = BleakScanner()
-feedbackEvent = asyncio.Event()
-
-async def unlockCommandMutex(sender, data):
-    print(f"received {data}")
-    feedbackEvent.set()
-
+xrp_device_addresses = {}
+xrp_transport = None
 try:
     from bleak.backends.winrt.util import allow_sta, uninitialize_sta
 
@@ -221,7 +217,6 @@ async def monitorBluetooth():
 
 async def handle_request(msg):
     global disconnectMonitor
-    global XRPAddress
     global disconnect
     global isConnected
     global isLookingForBluetooth
@@ -296,7 +291,7 @@ async def handle_request(msg):
             }
             """
             try:
-                if "XRP" in msg["port"]:
+                if "XRP" in msg["port"] or msg["port"].startswith(("http://", "https://", "ws://", "wss://")):
                     changed = False
                     if shared_state.robotType == shared_state.RobotType.MBOT or shared_state.robotType is None:
                         changed = True
@@ -304,8 +299,7 @@ async def handle_request(msg):
                     shared_state.robotType = shared_state.RobotType.XRP
                     isConnected = True
                     await myScanner.stop()
-                    #asyncio.gather(XRPControl())
-                    asyncio.create_task(XRPControl())
+                    asyncio.create_task(XRPControl(msg["port"]))
 
                     if changed:
                         update_robot(do_not_disturb)
@@ -352,15 +346,8 @@ async def handle_request(msg):
             # XRP = BLEDevice(address="28:CD:C1:16:DA:9A", name="XRProver", details="XRProver")
             for d in devices:
                 if (d.name is not None and "XRP" in d.name):
-                    XRP = d
-                    XRPAddress = d.address
-                    break
-            try:    
-                ports.append(XRP.name) # type: ignore
-            except:
-                print("XRP not found!")
-            finally:
-                pass
+                    xrp_device_addresses[d.name] = d.address
+                    ports.append(d.name)
 
             payload = {
                 "status": "ok",
@@ -499,16 +486,26 @@ async def connect_to_ws():
         print(f"[WebSocket] Connection failed: {str(e)}")
         websocket_started = False
 
-async def sendXRPCommand(client: BleakClient, cmd: Buffer):
-    await client.write_gatt_char(rxCharacteristic, cmd, response=True)
+def _build_xrp_transport(port_selection: str):
+    if port_selection.startswith(("http://", "https://", "ws://", "wss://")):
+        return WifiXrpTransport(endpoint=port_selection)
 
-async def XRPControl():
-    global isFirstCommand, isConnected, disconnect, XRPAddress, push_update_socket
-    print("Trying to connect to XRP " + XRPAddress)
+    address = xrp_device_addresses.get(port_selection)
+    if address is None:
+        raise RuntimeError(f"Could not resolve XRP BLE address for {port_selection}")
 
-    async with BleakClient(XRPAddress) as client:
-        print("Connected to XRP " + XRPAddress)
-        await client.start_notify(txCharacteristic, callback=unlockCommandMutex)
+    return BleXrpTransport(address=address, rx_characteristic=rxCharacteristic, tx_characteristic=txCharacteristic)
+
+
+async def XRPControl(port_selection: str):
+    global isFirstCommand, isConnected, disconnect, push_update_socket, xrp_transport
+
+    xrp_transport = _build_xrp_transport(port_selection)
+    print("Trying to connect to XRP via transport")
+    await xrp_transport.connect()
+    print("Connected to XRP transport")
+
+    try:
         while True:
             await asyncio.sleep(0.5)
 
@@ -521,23 +518,26 @@ async def XRPControl():
                 for c in current_commands:
                     print(f"Currently executing {c}")
                     if not isFirstCommand:
-                        await feedbackEvent.wait()
-                        feedbackEvent.clear()
+                        await xrp_transport.wait_feedback()
 
                     isFirstCommand = False
                     cmd = ("1 " + c["direction"][0] + " " + str(c["amount"])).encode("utf-8")
                     if (c["direction"][0] == "d"):
                         await asyncio.sleep(float(c["amount"]))
-                        feedbackEvent.set()
                     else:
                         print(f"Sending {cmd}")
-                        await sendXRPCommand(client=client, cmd=cmd)
+                        await xrp_transport.send_command(command=cmd)
 
             if disconnect:
                 print("Disconnecting")
                 shared_state.cmdQueue.clear()
                 disconnect = False
-                await client.disconnect()
+                await xrp_transport.disconnect()
+                xrp_transport = None
                 return
+    finally:
+        if xrp_transport is not None:
+            await xrp_transport.disconnect()
+            xrp_transport = None
 
 asyncio.run(main())
