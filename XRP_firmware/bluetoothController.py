@@ -1,3 +1,4 @@
+# Credit to Om Shingare, as I used some code from his ESP32 Simple Web Server, which is under the MIT license (https://github.com/shingareom/ESPProjectSimpleWebServerAuthDemoETI/tree/main)
 # Import necessary modules
 import time
 import network
@@ -12,10 +13,11 @@ from pestolinkSTARApp import PestoLinkAgent
 robot_name = "XRProver"
 
 # Optional WiFi mode. Leave blank to disable WiFi control.
-WIFI_SSID = ""
-WIFI_PASSWORD = ""
+WIFI_SSID = "Fortunet"
+WIFI_PASSWORD = "WayneGretsky18!"
 WIFI_PORT = 3540
 WIFI_DISCOVERY_PORT = 3541
+WEB_PORT = 80
 DISCOVERY_REQUEST = "STAR_XRP_DISCOVER"
 DISCOVERY_RESPONSE_PREFIX = "STAR_XRP_HERE:"
 
@@ -54,6 +56,10 @@ def setup_wifi_server():
     server.bind(("0.0.0.0", WIFI_PORT))
     server.listen(1)
     server.settimeout(0)
+    
+    webserver = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    webserver.bind(('', 80))
+    webserver.listen(50)
 
     discovery_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     discovery_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -61,7 +67,7 @@ def setup_wifi_server():
     discovery_server.settimeout(0)
 
     print(f"WiFi command server listening on {ip}:{WIFI_PORT}")
-    return server, discovery_server, ip
+    return server, discovery_server, ip, webserver
 
 
 
@@ -126,6 +132,48 @@ def read_wifi_command(server):
         if conn is not None:
             conn.close()
 
+# return webpage HTML
+def webPage():
+    html = """
+    <html>
+    <head>
+    <title>XRP Web Control</title>
+    <style>html{font-family: Arial; display:inline-block; text-align:center;}</style>
+    <meta name="referrer" content="no-referrer" />
+    </head>
+    <body>
+    <h1>XRP Web Control</h1>
+    <form>
+    <select name="direction" id="direction">
+    <option>Forward</option>
+    <option>Right</option>
+    <option>Backward</option>
+    <option>Left</option>
+    <option>Arm</option>
+    </select>
+    <input type="number" name="amount" id="amount" placeholder="Enter distance in cm" size=25></input>
+    <button type="submit">Send!</button>
+	</form>
+    </body>
+    <script>
+    var dropdown = document.getElementById("direction");
+    function changePlaceholder() {
+    	var selectedDir = dropdown.options[dropdown.selectedIndex].text;
+    	if (selectedDir == "Forward" || selectedDir == "Backward") {
+    	    document.getElementById("amount").placeholder = "Enter distance in cm";
+        } else if (selectedDir == "Right" || selectedDir == "Left"){
+        	document.getElementById("amount").placeholder = "Enter amount to turn in degrees";
+        } else {
+            document.getElementById("amount").placeholder = "Enter arm position in degrees";
+        }
+    }
+    
+    dropdown.onchange = changePlaceholder;
+    </script>
+    </html>
+    """
+    return html
+
 
 def execute_command(raw_cmd):
     global currentlyMoving, active_cmd
@@ -150,11 +198,33 @@ def execute_command(raw_cmd):
         currentlyMoving = False
 
 
-wifi_server, discovery_server, wifi_ip = setup_wifi_server()
+wifi_server, discovery_server, wifi_ip, web_server = setup_wifi_server()
 
 # Start an infinite loop
 while True:
+    # Send webpage to client
+    conn, addr = web_server.accept()
+    request = str(conn.recv(1024))
+    response = webPage()
+    conn.send("HTTP/1.1 200 OK\n")
+    conn.send("Content-Type: text/html\n")
+    conn.send("Connection: close\n\n")
+    conn.sendall(response)
+    conn.close()
     service_discovery(discovery_server, wifi_ip)
+    print(f"request = {request}")
+    
+    # Process webpage command request
+    if (request.find("amount") != -1):
+        cmd = request[request.find("/"):request.find("HTTP")]
+        cmd = cmd.strip()
+        cmd = cmd.split("&")
+        cmd[0] = cmd[0][12:][0].lower()
+        cmd[1] = cmd[1][7:]
+        cmd.insert(0, "1")
+        cmd = " ".join(cmd)
+        print("Executing command (from web):", cmd)
+        execute_command(cmd)
 
     ble_cmd = read_ble_command()
     wifi_cmd = read_wifi_command(wifi_server)
@@ -162,7 +232,7 @@ while True:
     if ble_cmd is not None or wifi_cmd is not None:
         board.led_on()
         command_text = ble_cmd if ble_cmd is not None else wifi_cmd
-        print("Executing command:", command_text)
+        print("Executing command: ", command_text)
         execute_command(command_text)
     elif not pestolink.is_connected() and wifi_server is None:
         board.led_off()
